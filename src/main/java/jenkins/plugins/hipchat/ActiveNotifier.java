@@ -1,13 +1,11 @@
 package jenkins.plugins.hipchat;
 
 import hudson.Util;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.CauseAction;
-import hudson.model.Result;
+import hudson.model.*;
 import hudson.scm.ChangeLogSet;
 import hudson.scm.ChangeLogSet.AffectedFile;
 import hudson.scm.ChangeLogSet.Entry;
+import hudson.tasks.test.AbstractTestResultAction;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.HashSet;
@@ -69,9 +67,20 @@ public class ActiveNotifier implements FineGrainedNotifier {
                 || (result == Result.NOT_BUILT && jobProperty.getNotifyNotBuilt())
                 || (result == Result.SUCCESS && jobProperty.getNotifySuccess())
                 || (result == Result.UNSTABLE && jobProperty.getNotifyUnstable())) {
-            getHipChat(r).publish(getBuildStatusMessage(r), getBuildColor(r));
-        }
 
+            if (!jobProperty.getSmartNotify() || checkSmartNotify(r)) {
+                getHipChat(r).publish(getBuildStatusMessage(r), getBuildColor(r));
+            }
+        }
+    }
+
+    Boolean checkSmartNotify(AbstractBuild r) {
+        return r.getResult() != Result.SUCCESS || previousBuildWasNotSuccessful(r);
+    }
+
+    Boolean previousBuildWasNotSuccessful(AbstractBuild r) {
+        Run previous = r.getPreviousBuild();
+        return (previous == null || previous.getResult() != Result.SUCCESS);
     }
 
     String getChanges(AbstractBuild r) {
@@ -119,6 +128,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
     String getBuildStatusMessage(AbstractBuild r) {
         MessageBuilder message = new MessageBuilder(notifier, r);
         message.appendStatusMessage();
+        message.appendTestResults();
         message.appendDuration();
         return message.appendOpenLink().toString();
     }
@@ -185,6 +195,13 @@ public class ActiveNotifier implements FineGrainedNotifier {
 
         public String toString() {
             return message.toString();
+        }
+
+        public MessageBuilder appendTestResults() {
+            AbstractTestResultAction testResult = build.getTestResultAction();
+            if (testResult != null && testResult.getFailCount() > 0)
+                message.append("<b>").append(testResult.getFailCount()).append(" failed [").append(testResult.getFailureDiffString()).append("]</b>");
+            return this;
         }
     }
 }

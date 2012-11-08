@@ -117,20 +117,20 @@ public class HipChatNotifier extends Notifier {
         }
 
         @Override
-        public HipChatNotifier newInstance(StaplerRequest sr) {
-            if (token == null) token = sr.getParameter("hipChatToken");
-            if (buildServerUrl == null) buildServerUrl = sr.getParameter("hipChatBuildServerUrl");
-            if (room == null) room = sr.getParameter("hipChatRoom");
-            if (sendAs == null) sendAs = sr.getParameter("hipChatSendAs");
+        public Publisher newInstance(StaplerRequest request, JSONObject formData) throws FormException {
+            if (token == null) token = request.getParameter("hipChatToken");
+            if (buildServerUrl == null) buildServerUrl = request.getParameter("hipChatBuildServerUrl");
+            if (room == null) room = request.getParameter("hipChatRoom");
+            if (sendAs == null) sendAs = request.getParameter("hipChatSendAs");
             return new HipChatNotifier(token, room, buildServerUrl, sendAs);
         }
 
         @Override
-        public boolean configure(StaplerRequest sr, JSONObject formData) throws FormException {
-            token = sr.getParameter("hipChatToken");
-            room = sr.getParameter("hipChatRoom");
-            buildServerUrl = sr.getParameter("hipChatBuildServerUrl");
-            sendAs = sr.getParameter("hipChatSendAs");
+        public boolean configure(StaplerRequest request, JSONObject formData) throws FormException {
+            token = request.getParameter("hipChatToken");
+            room = request.getParameter("hipChatRoom");
+            buildServerUrl = request.getParameter("hipChatBuildServerUrl");
+            sendAs = request.getParameter("hipChatSendAs");
             if (buildServerUrl != null && !buildServerUrl.endsWith("/")) {
                 buildServerUrl = buildServerUrl + "/";
             }
@@ -140,7 +140,7 @@ public class HipChatNotifier extends Notifier {
                 throw new FormException("Failed to initialize notifier - check your global notifier configuration settings", e, "");
             }
             save();
-            return super.configure(sr, formData);
+            return super.configure(request, formData);
         }
 
         @Override
@@ -151,6 +151,7 @@ public class HipChatNotifier extends Notifier {
 
     public static class HipChatJobProperty extends hudson.model.JobProperty<AbstractProject<?, ?>> {
         private String room;
+        private boolean smartNotify;
         private boolean startNotification;
         private boolean notifySuccess;
         private boolean notifyAborted;
@@ -160,7 +161,7 @@ public class HipChatNotifier extends Notifier {
 
 
         @DataBoundConstructor
-        public HipChatJobProperty(String room, boolean startNotification, boolean notifyAborted, boolean notifyFailure, boolean notifyNotBuilt, boolean notifySuccess, boolean notifyUnstable) {
+        public HipChatJobProperty(String room, boolean startNotification, boolean notifyAborted, boolean notifyFailure, boolean notifyNotBuilt, boolean notifySuccess, boolean notifyUnstable, boolean smartNotify) {
             this.room = room;
             this.startNotification = startNotification;
             this.notifyAborted = notifyAborted;
@@ -168,6 +169,7 @@ public class HipChatNotifier extends Notifier {
             this.notifyNotBuilt = notifyNotBuilt;
             this.notifySuccess = notifySuccess;
             this.notifyUnstable = notifyUnstable;
+            this.smartNotify = smartNotify;
         }
 
         @Exported
@@ -178,6 +180,11 @@ public class HipChatNotifier extends Notifier {
         @Exported
         public boolean getStartNotification() {
             return startNotification;
+        }
+
+        @Exported
+        public boolean getSmartNotify() {
+            return smartNotify;
         }
 
         @Exported
@@ -231,14 +238,15 @@ public class HipChatNotifier extends Notifier {
             }
 
             @Override
-            public HipChatJobProperty newInstance(StaplerRequest sr, JSONObject formData) throws hudson.model.Descriptor.FormException {
-                return new HipChatJobProperty(sr.getParameter("hipChatProjectRoom"),
-                        sr.getParameter("hipChatStartNotification") != null,
-                        sr.getParameter("hipChatNotifyAborted") != null,
-                        sr.getParameter("hipChatNotifyFailure") != null,
-                        sr.getParameter("hipChatNotifyNotBuilt") != null,
-                        sr.getParameter("hipChatNotifySuccess") != null,
-                        sr.getParameter("hipChatNotifyUnstable") != null);
+            public HipChatJobProperty newInstance(StaplerRequest request, JSONObject formData) throws hudson.model.Descriptor.FormException {
+                return new HipChatJobProperty(request.getParameter("hipChatProjectRoom"),
+                        request.getParameter("hipChatStartNotification") != null,
+                        request.getParameter("hipChatNotifyAborted") != null,
+                        request.getParameter("hipChatNotifyFailure") != null,
+                        request.getParameter("hipChatNotifyNotBuilt") != null,
+                        request.getParameter("hipChatNotifySuccess") != null,
+                        request.getParameter("hipChatNotifyUnstable") != null,
+                        request.getParameter("hipChatSmartNotify") != null);
             }
         }
     }
