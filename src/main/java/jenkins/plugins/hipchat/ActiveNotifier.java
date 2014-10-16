@@ -1,12 +1,17 @@
 package jenkins.plugins.hipchat;
 
+import hudson.Extension;
 import hudson.Util;
 import hudson.model.*;
+import hudson.model.User;
 import hudson.scm.ChangeLogSet;
 import hudson.scm.ChangeLogSet.AffectedFile;
 import hudson.scm.ChangeLogSet.Entry;
 import hudson.tasks.test.AbstractTestResultAction;
 import org.apache.commons.lang.StringUtils;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Collections2;
 
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -14,13 +19,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import javax.annotation.Nullable;
+
 @SuppressWarnings("rawtypes")
 public class ActiveNotifier implements FineGrainedNotifier {
-
     private static final Logger logger = Logger.getLogger(HipChatListener.class.getName());
 
     HipChatNotifier notifier;
 
+    
     public ActiveNotifier(HipChatNotifier notifier) {
         super();
         this.notifier = notifier;
@@ -28,7 +35,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
 
     private HipChatService getHipChat(AbstractBuild r) {
         AbstractProject<?, ?> project = r.getProject();
-        String projectRoom = Util.fixEmpty(project.getProperty(HipChatNotifier.HipChatJobProperty.class).getRoom());
+        String projectRoom = notifier.getRoom();
         return notifier.newHipChatService(projectRoom);
     }
 
@@ -60,18 +67,10 @@ public class ActiveNotifier implements FineGrainedNotifier {
     public void completed(AbstractBuild r) {
 
         AbstractProject<?, ?> project = r.getProject();
-        HipChatNotifier.HipChatJobProperty jobProperty = project.getProperty(HipChatNotifier.HipChatJobProperty.class);
         Result result = r.getResult();
-        if ((result == Result.ABORTED && jobProperty.getNotifyAborted())
-                || (result == Result.FAILURE && jobProperty.getNotifyFailure())
-                || (result == Result.NOT_BUILT && jobProperty.getNotifyNotBuilt())
-                || (result == Result.SUCCESS && jobProperty.getNotifySuccess())
-                || (result == Result.UNSTABLE && jobProperty.getNotifyUnstable())) {
-
-            if (!jobProperty.getSmartNotify() || checkSmartNotify(r)) {
+            if (!notifier.getSmartNotifications() || checkSmartNotify(r)) {
                 getHipChat(r).publish(getBuildStatusMessage(r), getBuildColor(r));
             }
-        }
     }
 
     Boolean checkSmartNotify(AbstractBuild r) {
@@ -128,6 +127,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
     String getBuildStatusMessage(AbstractBuild r) {
         MessageBuilder message = new MessageBuilder(notifier, r);
         message.appendStatusMessage();
+        message.appendBlameUpstream();
         message.appendTestResults();
         message.appendDuration();
         return message.appendOpenLink().toString();
@@ -174,7 +174,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
         }
 
         private MessageBuilder startMessage() {
-            message.append(build.getProject().getDisplayName());
+            message.append(build.getProject().getFullDisplayName());
             message.append(" - ");
             message.append(build.getDisplayName());
             message.append(" ");
@@ -203,5 +203,24 @@ public class ActiveNotifier implements FineGrainedNotifier {
                 message.append("<b>").append(testResult.getFailCount()).append(" failed [").append(testResult.getFailureDiffString()).append("]</b>");
             return this;
         }
+        
+        public MessageBuilder appendBlameUpstream() {
+          UpstreamFailureCause failureCause = new UpstreamFailureCause(build);
+          Set<User> toBlame = failureCause.getUpstream();
+          if (!toBlame.isEmpty()) {
+            message.append(" committers: ");
+            StringUtils.join(Collections2.transform(toBlame, new Function<User, String>() {
+              public String apply(@Nullable User input)
+              {
+                if (input != null) {
+                  return "@" + input.getId();
+                }
+                return "";
+              }
+           }), ",");
+          }
+          return this;
+        }
+
     }
 }

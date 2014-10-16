@@ -1,0 +1,18 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <!--
+    This jelly script is used for per-project configuration.
+    See global.jelly for a general discussion about jelly script.
+  -->
+    <f:entry title="Room" help="${rootURL}/plugin/hipchat/help-globalConfig-hipChatRoom.html">
+        <f:textbox name="hipChatRoom" value="${instance.getConfiguredRoom()}" />
+    </f:entry>
+    <f:entry title="Send As" help="${rootURL}/plugin/hipchat/help-globalConfig-hipChatSendAs.html">
+        <f:textbox name="hipChatSendAs" value="${instance.getConfiguredSendAs()}" />
+    </f:entry>
+    	<f:entry title="Smart Notify" help="${rootURL}/plugin/hipchat/help-globalConfig-hipChatSmartNotify.html">
+      		<f:checkbox name="hipChatSmartNotifications" value="true" checked="${instance.getSmartNotifications()}"/>
+    	</f:entry>
+    	<f:entry title="Notify Build Start">
+      		<f:checkbox name="hipChatStartNotification" value="true" checked="${instance.getStartNotification()}"/>
+    	</f:entry>
+</j:jelly>
