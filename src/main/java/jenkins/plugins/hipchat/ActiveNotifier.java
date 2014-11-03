@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
 
 @SuppressWarnings("rawtypes")
 public class ActiveNotifier implements FineGrainedNotifier {
-    private static final Logger logger = Logger.getLogger(HipChatListener.class.getName());
+    private static final Logger logger = Logger.getLogger(ActiveNotifier.class.getName());
 
     HipChatNotifier notifier;
 
@@ -127,8 +127,8 @@ public class ActiveNotifier implements FineGrainedNotifier {
     String getBuildStatusMessage(AbstractBuild r) {
         MessageBuilder message = new MessageBuilder(notifier, r);
         message.appendStatusMessage();
-        message.appendBlameUpstream();
         message.appendTestResults();
+        message.appendBlameUpstream();
         message.appendDuration();
         return message.appendOpenLink().toString();
     }
@@ -208,8 +208,8 @@ public class ActiveNotifier implements FineGrainedNotifier {
           UpstreamFailureCause failureCause = new UpstreamFailureCause(build);
           Set<User> toBlame = failureCause.getUpstream();
           if (!toBlame.isEmpty()) {
-            message.append(" committers: ");
-            StringUtils.join(Collections2.transform(toBlame, new Function<User, String>() {
+            message.append(" changes by: ");
+            message.append(StringUtils.join(Collections2.transform(toBlame, new Function<User, String>() {
               public String apply(@Nullable User input)
               {
                 if (input != null) {
@@ -217,7 +217,7 @@ public class ActiveNotifier implements FineGrainedNotifier {
                 }
                 return "";
               }
-           }), ",");
+           }), ","));
           }
           return this;
         }

@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
@@ -21,7 +22,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 
 import hudson.Util;
+import hudson.model.Item;
 import hudson.model.Result;
+import hudson.model.TopLevelItem;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Cause;
@@ -29,6 +32,8 @@ import hudson.model.User;
 
 public class UpstreamFailureCause
 {
+  private static final Logger logger = Logger.getLogger(ActiveNotifier.class.getName());
+
   private final AbstractBuild build;
 
   public UpstreamFailureCause(AbstractBuild build)
@@ -38,10 +43,17 @@ public class UpstreamFailureCause
 
   public Set<User> getUpstream()
   {
-    if (build.getResult() == Result.SUCCESS || build.getCause(Cause.UpstreamCause.class) == null)
+    if (build.getResult() == Result.SUCCESS || build.getCause(Cause.UpstreamCause.class) == null) {
+      logger.info("upstream: build is success or no cause recorded");
       return Collections.emptySet();
+    }
 
     ArrayList<Cause.UpstreamCause> upstreamCauses = getUpstreamCauses(build);
+    for(Cause.UpstreamCause cause: upstreamCauses) {
+      logger.info("upstream: found cause project " + cause.getUpstreamProject() + " -> " + cause.getUpstreamBuild());
+    }
+    
+    
     ArrayList<AbstractProject> upstreamProjects = getUpstreamProjects(upstreamCauses);
     Set<User> culprits = getCulprits(upstreamCauses);
 
@@ -56,21 +68,6 @@ public class UpstreamFailureCause
     return culprits;
   }
 
-  private Set<InternetAddress> buildCulpritList(Set<User> culprits) throws UnsupportedEncodingException
-  {
-    Set<InternetAddress> r = new HashSet<InternetAddress>();
-    for (User a : culprits) {
-      String addresses = Util.fixEmpty(a.getProperty(hudson.tasks.Mailer.UserProperty.class).getAddress());
-
-      if (addresses != null) {
-        try {
-          r.add(hudson.tasks.Mailer.StringToAddress(addresses, "UTF-8"));
-        } catch (AddressException e) {
-        }
-      }
-    }
-    return r;
-  }
 
   private Set<User> getCulprits(ArrayList<Cause.UpstreamCause> upstreamCauses)
   {
@@ -78,8 +75,19 @@ public class UpstreamFailureCause
     Set<User> culprits = new HashSet<User>();
 
     for (Cause.UpstreamCause cause : upstreamCauses) {
-      AbstractBuild build = ((AbstractProject) Jenkins.getInstance().getItem(cause.getUpstreamProject())).getBuildByNumber(cause.getUpstreamBuild());
-      culprits.addAll(build.getCulprits());
+      if (cause != null) {
+        logger.info("upstream culprits: cause " + cause.getUpstreamProject() + " -> " + cause.getUpstreamBuild());
+        Item item = Jenkins.getInstance().getItem(cause.getUpstreamProject());
+        if (item instanceof AbstractProject) {
+          logger.info("upstream culprits: found item " + item.getFullDisplayName());
+          AbstractBuild build = ((AbstractProject)item).getBuildByNumber(cause.getUpstreamBuild());
+          if (build != null) {
+            logger.info("upstream culprits: found build " + build.getDisplayName());
+            logger.info("upstream culprits: adding culprit " + build.getCulprits());
+            culprits.addAll(build.getCulprits());
+          }
+        }
+      }
     }
 
     return culprits;
