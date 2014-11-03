@@ -53,19 +53,7 @@ public class UpstreamFailureCause
       logger.info("upstream: found cause project " + cause.getUpstreamProject() + " -> " + cause.getUpstreamBuild());
     }
     
-    
-    ArrayList<AbstractProject> upstreamProjects = getUpstreamProjects(upstreamCauses);
-    Set<User> culprits = getCulprits(upstreamCauses);
-
-    if (upstreamProjects.isEmpty()) {
-      return Collections.emptySet();
-    }
-
-    if (culprits.isEmpty()) {
-      Collections.emptySet();
-    }
-
-    return culprits;
+    return getCulprits(upstreamCauses);
   }
 
 
@@ -77,7 +65,7 @@ public class UpstreamFailureCause
     for (Cause.UpstreamCause cause : upstreamCauses) {
       if (cause != null) {
         logger.info("upstream culprits: cause " + cause.getUpstreamProject() + " -> " + cause.getUpstreamBuild());
-        Item item = Jenkins.getInstance().getItem(cause.getUpstreamProject());
+        Item item = Jenkins.getInstance().getItemByFullName(cause.getUpstreamProject());
         if (item instanceof AbstractProject) {
           logger.info("upstream culprits: found item " + item.getFullDisplayName());
           AbstractBuild build = ((AbstractProject)item).getBuildByNumber(cause.getUpstreamBuild());

@@ -213,7 +213,15 @@ public class ActiveNotifier implements FineGrainedNotifier {
               public String apply(@Nullable User input)
               {
                 if (input != null) {
-                  return "@" + input.getId();
+                  String user = input.getId();
+                  if (user.indexOf(' ') != -1) {
+                    // dealing with long name as id, bad
+                    user = user.split(" ")[0].toLowerCase();
+                  } else if (user.indexOf('@') != -1) {
+                    // dealing with email as id, bad again
+                    user = user.split("@")[0];
+                  }
+                  return "@" + user;
                 }
                 return "";
               }
